@@ -2,13 +2,14 @@ import tensorflow as tf
 import numpy as np
 import argparse
 
-path_to_data = "/tmp/input_data"
-path_to_save_model = "/tmp/model.ckpt"
+path_to_data = "/examples/input_data"
+path_to_save_model = "/examples/model_state/tf_lstm_model.ckpt"
+path_to_save_graph = "/examples/model_state/"
 from tensorflow.examples.tutorials.mnist import input_data
 mnist = input_data.read_data_sets(path_to_data, one_hot=True)
 
 def lstm_gate (o, W, U, b, x, h):
-  return o(tf.matmul(x, W) + tf.matmul(h, U) + bf)
+  return o(tf.matmul(x, W) + tf.matmul(h, U) + b)
 
 def lstm_cell (Wf, Uf, bf, Wi, Ui, bi, Wo, Uo, bo, Wc, Uc, bc, xt, ht, ct):
    ft = lstm_gate (tf.sigmoid, Wf, Uf, bf, xt, ht)
@@ -20,51 +21,51 @@ def lstm_cell (Wf, Uf, bf, Wi, Ui, bi, Wo, Uo, bo, Wc, Uc, bc, xt, ht, ct):
 
 if __name__ == "__main__":
   num_classes = 10
-  batch_size = 1
+  batch_size = 128
   times = 28
   num_inputs = 28
   learning_rate = 0.001
-  training_steps = 1000
+  training_steps = 10000
 
-  Wf = tf.Variable (tf.random_normal([num_inputs, num_classes]))
-  Uf = tf.Variable (tf.random_normal([num_classes, num_classes]))
-  bf = tf.Variable (tf.random_normal([1, num_classes]))
+  Wf = tf.Variable (tf.random_normal([batch_size, num_inputs, num_classes]))
+  Uf = tf.Variable (tf.random_normal([batch_size, num_classes, num_classes]))
+  bf = tf.Variable (tf.random_normal([batch_size, 1, num_classes]))
   
-  Wi = tf.Variable (tf.random_normal([num_inputs, num_classes]))
-  Ui = tf.Variable (tf.random_normal([num_classes, num_classes]))
-  bi = tf.Variable (tf.random_normal([1, num_classes]))
+  Wi = tf.Variable (tf.random_normal([batch_size, num_inputs, num_classes]))
+  Ui = tf.Variable (tf.random_normal([batch_size, num_classes, num_classes]))
+  bi = tf.Variable (tf.random_normal([batch_size, 1, num_classes]))
 
-  Wo = tf.Variable (tf.random_normal([num_inputs, num_classes]))
-  Uo = tf.Variable (tf.random_normal([num_classes, num_classes]))
-  bo = tf.Variable (tf.random_normal([1, num_classes]))
+  Wo = tf.Variable (tf.random_normal([batch_size, num_inputs, num_classes]))
+  Uo = tf.Variable (tf.random_normal([batch_size, num_classes, num_classes]))
+  bo = tf.Variable (tf.random_normal([batch_size, 1, num_classes]))
 
-  Wc = tf.Variable (tf.random_normal([num_inputs, num_classes]))
-  Uc = tf.Variable (tf.random_normal([num_classes, num_classes]))
-  bc = tf.Variable (tf.random_normal([1, num_classes]))
+  Wc = tf.Variable (tf.random_normal([batch_size, num_inputs, num_classes]))
+  Uc = tf.Variable (tf.random_normal([batch_size, num_classes, num_classes]))
+  bc = tf.Variable (tf.random_normal([batch_size, 1, num_classes]))
    
-  ht = tf.Variable (tf.random_normal([1, num_classes]))
-  ct = tf.Variable (tf.random_normal([1, num_classes]))
+  ht = tf.Variable (tf.zeros([batch_size, 1, num_classes]), trainable=False)
+  ct = tf.Variable (tf.zeros([batch_size, 1, num_classes]), trainable=False)
   
   X = tf.placeholder (tf.float32, shape=(batch_size, times, num_inputs))
   Y = tf.placeholder (tf.float32, shape=(batch_size, num_classes))
 
-  weight = tf.Variable (tf.random_normal([num_classes, num_classes]))
-  biases = tf.Variable (tf.random_normal([1, num_classes]))
+  weight = tf.Variable (tf.random_normal([batch_size, num_classes, num_classes]))
+  biases = tf.Variable (tf.random_normal([batch_size, 1, num_classes]))
 
   xt_times = tf.unstack (X, times, 1)
   
   for xt in xt_times:
+    xt = tf.reshape(xt, [batch_size, 1, num_inputs])
     [ht, ct] = lstm_cell(Wf, Uf, bf, Wi, Ui, bi, Wo, Uo, bo, Wc, Uc, bc, xt, ht, ct)
   
-  logits = tf.matmul(ht, weight) + biases
+  logits = tf.reshape (tf.add (tf.matmul(ht, weight), biases), [batch_size, num_classes])
   # The trainig does not really work well.
   # TODO. Understand what is wrong
-  prediction = tf.nn.softmax (logits)
-
-  loss_op = tf.reduce_mean (tf.nn.softmax_cross_entropy_with_logits(
+  prediction = tf.nn.softmax (logits, name="out_lstm_node")
+  loss_op = tf.reduce_mean (tf.nn.softmax_cross_entropy_with_logits_v2(
      logits=logits, labels=Y))
 
-  optimize = tf.train.GradientDescentOptimizer(learning_rate=learning_rate)
+  optimize = tf.train.RMSPropOptimizer(learning_rate=learning_rate)
   train_op = optimize.minimize(loss_op)
 
   correct_pred = tf.equal (tf.argmax (prediction, 1), tf.argmax (Y, 1))
@@ -79,14 +80,14 @@ if __name__ == "__main__":
       X_input, Y_input = mnist.train.next_batch(batch_size) 
       # reshape to batch_size * times * num_inputs
       X_input = X_input.reshape (batch_size, times, num_inputs)
-      loss_op_float, accuracy_float = sess.run ([loss_op, accuracy], { X: X_input, Y: Y_input })
-      if step % 200 == 0:
-        print ("Step : " + str(step) + "Loss = " + "{:4f}".format(loss_op_float) + ", Accuracy = " + "{:3f}".format(accuracy_float))
+      loss_op_float, accuracy_float, pred = sess.run ([loss_op, accuracy, correct_pred], { X: X_input, Y: Y_input })
+      if step % 1000 == 0:
+        print ("Step " + str(step) + " Loss = " + "{:4f}".format(loss_op_float) + ", Accuracy = " + "{:3f}".format(accuracy_float))
+
+    test_data = mnist.test.images[:batch_size].reshape((batch_size, times, num_inputs))
+    test_label = mnist.test.labels[:batch_size]#.reshape((batch_size, 1, num_classes))
+    print ("Testin accuracy ")
+    print (sess.run(accuracy, {X:test_data, Y:test_label}))
     saver.save (sess, path_to_save_model)
-
-
-     image_num = 11
-     X_test = mnist.test.images[image_num].reshape(1, times, num_inputs)
-     Y_test = mnist.test.labels[image_num].reshape(1, num_classes)
-     print ("Testing Accuracy :")
-     print (sess.run (accuracy , { X:X_test, Y: Y_test}))
+    tf.train.write_graph(sess.graph_def, path_to_save_graph, "tf_lstm.pb", False)
+    
