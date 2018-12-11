@@ -76,6 +76,54 @@ def simple_device_save_module():
   check_code_gen("vulkan")
   check_code_gen("opencl")
 
+def simple_import():
+  temp = util.tempdir()
+  def my_add():
+    n = tvm.var ("n")
+    A = tvm.placeholder ((n ,n), name='A', dtype="float32")
+    B = tvm.placeholder ((n, n), name='B', dtype="float32")
+    C = tvm.compute (A.shape, lambda *i: A(*i) + B(*i), name='C')
+    s = tvm.create_schedule (C.op)
+    module = tvm.build(s, [A, B, C], "llvm", "llvm")
+    temp = util.tempdir()
+    module.save (temp.relpath ("myadd.o"))
+    cc.create_shared ("myadd.so", [temp.relpath("myadd.o")])
+    print ("create myadd")
+
+  def my_mul():
+    n = tvm.var ("n")
+    A = tvm.placeholder ((n ,n), name='A', dtype="float32")
+    B = tvm.placeholder ((n, n), name='B', dtype="float32")
+    C = tvm.compute (A.shape, lambda *i: A(*i) * B(*i), name='C')
+    s = tvm.create_schedule (C.op)
+    module = tvm.build(s, [A, B, C], "llvm", "llvm")
+    temp = util.tempdir()
+    module.save (temp.relpath ("mymul.o"))
+    cc.create_shared("mymul.so", [temp.relpath("mymul.o")])
+    print ("create mymul")
+
+  # Save at first
+  my_add()
+  my_mul()
+
+  myadd = tvm.module.load("myadd.so")
+  mymul = tvm.module.load("mymul.so")
+  device = "llvm"
+
+  ctx = tvm.context (device, 0)
+  n = 1024
+  dtype = "float32"
+  a = tvm.nd.array(np.random.uniform(size=(n,n)).astype(dtype), ctx)
+  b = tvm.nd.array(np.random.uniform(size=(n,n)).astype(dtype), ctx)
+  c = tvm.nd.array(np.random.uniform(size=(n,n)).astype(dtype), ctx)
+  d = tvm.nd.array(np.random.uniform(size=(n,n)).astype(dtype), ctx)
+  e = tvm.nd.array(np.random.uniform(size=(n,n)).astype(dtype), ctx)
+
+  myadd(a, b, c)
+  mymul(c, d, e)
+  print (e.asnumpy())
+
 if __name__ == "__main__":
   simple_llvm_save_module()
   simple_device_save_module()
+  simple_import()
