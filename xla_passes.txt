@@ -1,0 +1,101 @@
+1. DynamicIndexSplitter.
+Convert R1 index operands to DynamicSlice and DynamicUpdateSlice ops into
+separate scalars.
+2. MapInliner.
+A pass which performs map inlining. This replaces kMap instructions with
+their equivalent sequence of array operations. For example:
+map({X, Y}, add) -> add(X, Y)).
+3. CholeskyExpander.
+https://en.wikipedia.org/wiki/Cholesky_decomposition
+4. TriangularSolveExpander.
+?
+5. CallInliner.
+Inlines the body of the called function.
+6. BatchDotSimplification.
+Simplifies batch dot operation.
+7. DotDecomposer.
+Decomposes batch Dot operations into a sequence of smaller (R2) Dot operations.
+8. ConvolutionGroupConverter.
+?
+9. BatchNormExpander.
+Rewrites batch norm operations into more operations. 
+10. HloGetDimensionSizeRewriter.
+Replaces a kGetDimensionSize instruction with a hlo instruction
+representing the dynamic size if the dimension is dynamic, otherwise a
+constant instruction representing the static size.
+11. AlgebraSimplifier.
+Simplifies math expression.
+12. SortSimplifier.
+Removes unused operands from sort.
+13. HloDCE.
+Eliminates dead code.
+14. ZeroSizedHloElimination.
+Replaces zero sized hlos with a zero sized constant literals.
+15. WhileLoopInvariantCodeMotion.
+Rewrites while loops to hoist loop invariant instructions in
+the while body into the computation that contains the while instruction.
+16. TypleSimplifier.
+Replaces users of optimized away instructions with a simpler form.
+17. WhileLoopConstantSinking.
+Rewrites while loop invariant values that happen to be constants into the while loop body and
+conditional.
+18. ReshapeMover.
+Moves Reshapes and Transposes to let later passes combine them.
+19. HloConstantFolding.
+Foldes constants.
+20. ConditionalSimplifier.
+Removes kConditional with a constant predicate, replacing them with their true or false computation as appropriate.
+21. TransposeFolding.
+Folds transpose operators into Dot operators, where the Dot
+operator is implemented by a GEMM kernel that can transpose its inputs.
+22. HloCSE.
+Eliminates common-subexpression.
+23. CpuInstructionFusion.
+Fuses instructions cpu specific.
+24. ScatterExpander.
+?.
+25. CpuLayoutAssignment
+Assigns layout for CPU.
+26. GpuLayoutAssignment.
+Assigns layout for GPU.
+27. HloElementTypeConverter.
+Converts types if possible (for example - F32 -> F16)
+28. FlattenCallGraph.
+Associates each call site with a unique computation.
+29. CpuCopyInsertion.
+?
+30. StableSortExpander.
+Expands Sort ops that have the is_stable field set to true
+into equivalent Sort ops which guarantee stable sorting without relying on
+the is_stable field.
+31. CudnnBatchNormRewriter.
+Rewrites BatchNorm hlo into cudnn call.
+32. WhileLoopTripCountAnnotator.
+Annotates while/loop for future pattern matching passes.
+33. CusolverRewriter.
+Rewrites Cholesky calls into CustomCall HLOs that call into cuSolver.
+34. CudnnConvRewriter.
+Rewrites plain convolutions, backwards-filter convolutions, and
+backwards-input convolutions into CustomCall HLOs that call into cuDNN.
+35. CudnnFusedConvRewriter.
+Cudnn specific rewriter.
+36. CudnnConvPaddingLegalization.
+Canonicalizes convolution instructions for GPU codegen. It
+inserts Pad instructions before Convolution instructions with uncanonicalized
+padding, so that they can be lowered to cuDNN convolution.
+CudnnConvAlgorithmPicker.
+38. GpuInstructionFusion.
+Fuses instruction for GPU.
+39. FusionMerge.
+Merges fusion instructions to reduce kernel
+launch overhead and improve data locality.
+40. GpuMultiOutPutFusion.
+Multioutput fusion.
+
+Memory scheduling algo:
+1. ListScheduler (Greedy method - schedules op at first which frees buffer larger than produces).
+2. DFSMemroyScheduler (DFS post-order ordering).
+
+Backends:
+1. LLVM is open-source. LLVM -> NVIDIA or X64.
+2. TPU is closed-source.
